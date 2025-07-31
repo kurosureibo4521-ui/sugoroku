@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>なるみん双六ゲツール</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap');
+        
+        body {
+            font-family: 'M PLUS Rounded 1c', 'Hiragino Maru Gothic Pro', 'Meiryo', sans-serif;
+            background-color: #fffaf0;
+            background-image: radial-gradient(#ffb7d5 1px, transparent 1px), radial-gradient(#b7d4ff 1px, transparent 1px);
+            background-size: 40px 40px;
+            background-position: 0 0, 20px 20px;
+        }
+        .board-container {
+            overflow-x: auto;
+            padding: 20px 10px;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-radius: 20px;
+            -webkit-overflow-scrolling: touch; /* iOS用スムーススクロール */
+        }
+        .board-row {
+            display: flex;
+            margin-bottom: 30px;
+            position: relative;
+            align-items: center;
+            justify-content: center;
+        }
+        .game-cell {
+            /* サイズはJavaScriptで動的に設定されます */
+            margin: 0 5px;
+            border: 4px solid #333;
+            border-radius: 18px;
+            display: flex;
+            flex-direction: column; /* Use column to stack number, text, action */
+            justify-content: flex-start; /* Align content to the top */
+            align-items: center;
+            position: relative;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+            transition: all 0.3s;
+            overflow: hidden;
+            background-image: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 100%);
+            /* padding-top もJavaScriptで動的に設定されます */
+        }
+        .game-cell:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        .current-cell {
+            box-shadow: 0 0 0 5px #ff4500, 0 6px 20px rgba(255,69,0,0.5);
+            animation: highlight 2s infinite;
+        }
+        @keyframes highlight {
+            0% { box-shadow: 0 0 0 5px rgba(255,69,0,0.7), 0 6px 20px rgba(255,69,0,0.5); }
+            50% { box-shadow: 0 0 0 8px rgba(255,69,0,0.9), 0 6px 25px rgba(255,69,0,0.7); }
+            100% { box-shadow: 0 0 0 5px rgba(255,69,0,0.7), 0 6px 20px rgba(255,69,0,0.5); }
+        }
+        .player-token {
+            position: absolute;
+            /* サイズ、色、位置はJavaScriptで動的に設定されます */
+            border-radius: 50%;
+            /* border はJavaScriptで動的に設定されます */
+            /* background はJavaScriptで動的に設定されます */
+            /* box-shadow はJavaScriptで動的に設定されます */
+            z-index: 10;
+            animation: pulse 1.5s infinite;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* color はJavaScriptで動的に設定されます */
+            font-weight: bold;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        .cell-number {
+            position: absolute; /* Make number absolutely positioned */
+            /* top, left, width, height, font-size はJavaScriptで動的に設定されます */
+            font-weight: bold;
+            background-color: rgba(255,255,255,0.8);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .cell-text {
+            font-weight: bold;
+            text-align: center;
+            /* padding, font-size, min-height, margin-top はJavaScriptで動的に設定されます */
+            word-break: break-word;
+            flex-shrink: 0; /* Prevent text from shrinking */
+            width: 100%; /* Take full width of cell for centering */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .cell-action {
+            font-weight: bold;
+            text-align: center;
+            /* padding, font-size, margin-top, margin-bottom はJavaScriptで動的に設定されます */
+            border-radius: 10px;
+            margin-top: auto; /* Push action to the bottom */
+            flex-shrink: 0; /* Prevent action from shrinking */
+        }
+        .arrow-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* width, height, margin はJavaScriptで動的に設定されます */
+        }
+        .cell-arrow {
+            /* font-size はJavaScriptで動的に設定されます */
+            filter: drop-shadow(0 1px 1px rgba(255,255,255,0.8));
+        }
+        .color-picker {
+            width: 50px;
+            height: 50px;
+            padding: 0;
+            border: 3px solid #333;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+        }
+        .vertical-arrow {
+            /* font-size はJavaScriptで動的に設定されます */
+            font-weight: bold;
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));
+        }
+        .dice-container {
+            background: linear-gradient(135deg, #fff, #f0f0f0);
+            border-radius: 20px;
+            padding: 15px 25px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+            display: inline-flex;
+            align-items: center;
+        }
+        .dice {
+            font-size: 50px;
+            animation: spin 0.5s ease-out;
+            margin-left: 15px;
+            text-shadow: 0 3px 6px rgba(0,0,0,0.2);
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg) scale(0.5); }
+            50% { transform: rotate(180deg) scale(1.2); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+        .btn {
+            border-radius: 15px;
+            font-weight: bold;
+            padding: 12px 24px;
+            transition: all 0.3s;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+            position: relative;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent; /* タップ時のハイライトを消す */
+        }
+        .btn:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: 0.5s;
+        }
+        .btn:hover:before {
+            left: 100%;
+        }
+        .btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        .btn:active {
+            transform: translateY(2px);
+        }
+        .panel {
+            border-radius: 25px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+            border: 3px solid rgba(255,255,255,0.5);
+        }
+        .input-field {
+            border-width: 3px;
+            border-radius: 15px;
+            padding: 12px;
+            transition: all 0.3s;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .input-field:focus {
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1), 0 0 0 3px rgba(99,102,241,0.3);
+        }
+        .image-preview {
+            max-width: 100%;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            margin-top: 20px;
+            border: 2px solid #ccc; /* Add a subtle border */
+        }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
+            position: relative;
+        }
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 30px;
+            cursor: pointer;
+            color: #666;
+        }
+        
+        /* スマホ対応のスタイル - JavaScriptで動的にサイズを設定するため、大まかな調整のみ */
+        @media (max-width: 768px) {
+            .game-cell {
+                margin: 0 3px;
+                border-width: 3px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .game-cell {
+                margin: 0 2px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto p-4">
+        <h1 class="text-4xl md:text-5xl font-bold text-center mb-6 text-pink-600" style="text-shadow: 3px 3px 6px rgba(0,0,0,0.2);">なるみん双六ゲツール</h1>
+        
+        <div class="bg-gradient-to-r from-yellow-200 to-orange-200 p-6 md:p-8 rounded-3xl shadow-lg mb-6 panel">
+            <h2 class="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-purple-700">ゲーム設定</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-4 md:mb-6">
+                <div>
+                    <label class="block text-gray-700 mb-2 md:mb-3 font-bold text-base md:text-lg">マス目の数:</label>
+                    <input type="number" id="cellCount" min="5" max="50" value="20" class="w-full input-field border-purple-300 focus:border-purple-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-gray-700 mb-2 md:mb-3 font-bold text-base md:text-lg">ボードの背景色:</label>
+                    <input type="color" id="boardColor" value="#fffaf0" class="color-picker">
+                </div>
+                <div>
+                    <label class="block text-gray-700 mb-2 md:mb-3 font-bold text-base md:text-lg">行あたりのマス数:</label>
+                    <input type="number" id="cellsPerRow" min="3" max="10" value="5" class="w-full input-field border-purple-300 focus:border-purple-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-gray-700 mb-2 md:mb-3 font-bold text-base md:text-lg">マス目のサイズ (px):</label>
+                    <input type="number" id="cellSize" min="50" max="150" value="90" class="w-full input-field border-purple-300 focus:border-purple-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-gray-700 mb-2 md:mb-3 font-bold text-base md:text-lg">プレイヤーの色:</label>
+                    <input type="color" id="playerColor" value="#ff4500" class="color-picker">
+                </div>
+                <div>
+                    <label class="block text-gray-700 mb-2 md:mb-3 font-bold text-base md:text-lg">プレイヤーのサイズ (px):</label>
+                    <input type="number" id="playerSize" min="1" max="50" value="30" class="w-full input-field border-purple-300 focus:border-purple-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-gray-700 mb-2 md:mb-3 font-bold text-base md:text-lg">ゴール時の挙動:</label>
+                    <select id="exactGoal" class="w-full input-field border-purple-300 focus:border-purple-500 focus:outline-none">
+                        <option value="false">通り過ぎてゴール</option>
+                        <option value="true">ジャストでゴール、超過分は戻る</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap justify-center mt-4 md:mt-8 gap-4">
+                <button id="createBoard" class="btn bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-6 md:px-10 py-3 md:py-4 rounded-xl hover:from-purple-600 hover:to-indigo-700 transition text-lg md:text-xl">ボードを作成</button>
+                <button id="clearAll" class="btn bg-gradient-to-r from-gray-500 to-gray-700 text-white px-6 md:px-10 py-3 md:py-4 rounded-xl hover:from-gray-600 hover:to-gray-800 transition text-lg md:text-xl">全てクリア</button>
+            </div>
+        </div>
+        
+        <div id="gameContainer" class="bg-gradient-to-r from-blue-200 to-purple-200 p-6 md:p-8 rounded-3xl shadow-lg mb-6 hidden panel">
+            <h2 class="text-2xl md:text-3xl font-bold mb-4 md:mb-6 text-blue-700">ゲームボード</h2>
+            
+            <div class="flex flex-wrap justify-between items-center mb-6 md:mb-8 gap-4">
+                <div class="dice-container">
+                    <span class="font-bold text-gray-700 text-base md:text-xl">出目:</span>
+                    <div id="diceResult" class="dice">🎲</div>
+                    <button id="rollDice" class="btn bg-gradient-to-r from-green-500 to-teal-500 text-white px-4 md:px-6 py-2 md:py-3 rounded-xl hover:from-green-600 hover:to-teal-600 transition text-base md:text-lg ml-4">サイコロを回す</button>
+                </div>
+                <button id="resetGame" class="btn bg-gradient-to-r from-red-500 to-pink-500 text-white px-6 md:px-8 py-3 md:py-4 rounded-xl hover:from-red-600 hover:to-pink-600 transition text-base md:text-xl">ボードリセット</button>
+            </div>
+            
+            <div class="board-container mb-6 md:mb-8">
+                <div id="gameBoard" class="relative"></div>
+            </div>
+            
+            <div class="bg-white rounded-3xl p-6 md:p-8 mb-6 md:mb-8 panel">
+                <h3 class="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-blue-700">マス目の編集</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                    <div>
+                        <label class="block text-gray-700 mb-2 md:mb-3 font-bold text-base md:text-lg">マス番号:</label>
+                        <input type="number" id="cellNumber" min="1" value="1" class="w-full input-field border-blue-300 focus:border-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-2 md:mb-3 font-bold text-base md:text-lg">マスの文字:</label>
+                        <input type="text" id="cellText" placeholder="ここに文字を入力" class="w-full input-field border-blue-300 focus:border-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-2 md:mb-3 font-bold text-base md:text-lg">マスの背景色:</label>
+                        <input type="color" id="cellColor" value="#ffffff" class="color-picker">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-2 md:mb-3 font-bold text-base md:text-lg">マスの文字色:</label>
+                        <input type="color" id="cellTextColor" value="#333333" class="color-picker">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mt-4 md:mt-6">
+                    <div>
+                        <label class="block text-gray-700 mb-2 md:mb-3 font-bold text-base md:text-lg">アクション:</label>
+                        <select id="cellAction" class="w-full input-field border-blue-300 focus:border-blue-500 focus:outline-none">
+                            <option value="none">なし</option>
+                            <option value="forward">進む</option>
+                            <option value="backward">戻る</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-2 md:mb-3 font-bold text-base md:text-lg">マス数:</label>
+                        <input type="number" id="actionValue" min="1" value="1" class="w-full input-field border-blue-300 focus:border-blue-500 focus:outline-none">
+                    </div>
+                    <div class="flex items-end">
+                        <button id="updateCell" class="btn bg-gradient-to-r from-blue-500 to-cyan-500 text-white px-6 py-3 md:py-4 rounded-xl hover:from-blue-600 hover:to-cyan-600 transition w-full text-base md:text-xl">マスを更新</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-3xl p-6 md:p-8 mb-6 md:mb-8 panel">
+                <h3 class="text-xl md:text-2xl font-bold mb-4 md:mb-6 text-blue-700">矢印の設定</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                    <div>
+                        <label class="block text-gray-700 mb-2 md:mb-3 font-bold text-base md:text-lg">矢印の色:</label>
+                        <input type="color" id="updateArrowColor" value="#4B5563" class="color-picker">
+                    </div>
+                    <div class="flex items-end">
+                        <button id="updateArrows" class="btn bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-6 py-3 md:py-4 rounded-xl hover:from-purple-600 hover:to-indigo-600 transition w-full text-base md:text-xl">矢印を更新</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex flex-col items-center">
+                <button id="exportImage" class="btn bg-gradient-to-r from-purple-500 to-pink-500 text-white px-8 md:px-10 py-3 md:py-4 rounded-xl hover:from-purple-600 hover:to-pink-600 transition text-lg md:text-xl">画像として保存</button>
+                <div id="imagePreviewContainer" class="mt-6 hidden w-full text-center">
+                    <h3 class="text-xl font-bold mb-4 text-purple-700">画像プレビュー</h3>
+                    <img id="imagePreview" class="image-preview mx-auto" />
+                    <div class="flex flex-wrap justify-center gap-4 mt-4">
+                        <button id="downloadImage" class="btn bg-gradient-to-r from-green-500 to-teal-500 text-white px-6 py-3 rounded-xl hover:from-green-600 hover:to-teal-600 transition">ダウンロード</button>
+                        <button id="openImage" class="btn bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-6 py-3 rounded-xl hover:from-blue-600 hover:to-indigo-600 transition">新しいタブで開く</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const createBoardBtn = document.getElementById('createBoard');
+            const rollDiceBtn = document.getElementById('rollDice');
+            const resetGameBtn = document.getElementById('resetGame');
+            const updateCellBtn = document.getElementById('updateCell');
+            const updateArrowsBtn = document.getElementById('updateArrows');
+            const exportImageBtn = document.getElementById('exportImage');
+            const downloadImageBtn = document.getElementById('downloadImage');
+            const openImageBtn = document.getElementById('openImage');
+            const clearAllBtn = document.getElementById('clearAll');
+            
+            const gameContainer = document.getElementById('gameContainer');
+            const gameBoard = document.getElementById('gameBoard');
+            const diceResult = document.getElementById('diceResult');
+            const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+            const imagePreview = document.getElementById('imagePreview');
+            
+            let currentPosition = 0;
+            let cellsData = [];
+            let cellsPerRow = 5;
+            let cellSize = 90; // デフォルトのマス目サイズ
+            let playerColor = "#ff4500"; // プレイヤーのデフォルト色
+            let playerSize = 30; // プレイヤーのデフォルトサイズ (初期値を30に変更)
+            let imageDataUrl = null;
+            let arrowColor = "#4B5563";
+            let boardColor = "#fffaf0";
+            let exactGoalBehavior = false;
+
+            const LOCAL_STORAGE_KEY = 'sugorokuGameData';
+            
+            createBoardBtn.addEventListener('click', createGameBoard);
+            rollDiceBtn.addEventListener('click', rollDice);
+            resetGameBtn.addEventListener('click', resetAndSaveGame);
+            updateCellBtn.addEventListener('click', updateCell);
+            updateArrowsBtn.addEventListener('click', updateArrows);
+            exportImageBtn.addEventListener('click', exportAsImage);
+            downloadImageBtn.addEventListener('click', downloadImage);
+            openImageBtn.addEventListener('click', openImageInNewTab);
+            clearAllBtn.addEventListener('click', clearAllData);
+
+            loadGameData();
+            
+            function updateArrows() {
+                const newArrowColor = document.getElementById('updateArrowColor').value;
+                arrowColor = newArrowColor;
+                
+                const arrows = document.querySelectorAll('.cell-arrow, .vertical-arrow');
+                arrows.forEach(arrow => {
+                    arrow.style.color = arrowColor;
+                });
+                saveGameData();
+            }
+            
+            const defaultColors = [
+                '#FFD6E0', '#FFEFCF', '#D4F0F0', '#CCE2CB', 
+                '#FEE1E8', '#FED7C3', '#F6EAC2', '#ECD5E3',
+                '#FF9AA2', '#FFB7B2', '#FFDAC1', '#E2F0CB',
+                '#B5EAD7', '#C7CEEA', '#E0FEFE', '#DFD3C3',
+                '#FFC8DD', '#FFAFCC', '#BDE0FE', '#A2D2FF',
+                '#CDB4DB', '#FFC8DD', '#FFAFCC', '#BDE0FE'
+            ];
+            
+            function createGameBoard() {
+                const cellCount = parseInt(document.getElementById('cellCount').value);
+                boardColor = document.getElementById('boardColor').value;
+                cellsPerRow = parseInt(document.getElementById('cellsPerRow').value);
+                cellSize = parseInt(document.getElementById('cellSize').value);
+                playerColor = document.getElementById('playerColor').value; // 新しく追加した入力欄から取得
+                playerSize = parseInt(document.getElementById('playerSize').value); // 新しく追加した入力欄から取得
+                exactGoalBehavior = document.getElementById('exactGoal').value === 'true';
+                
+                if (cellCount < 5 || cellCount > 50) {
+                    alert('マス目の数は5から50の間で設定してください。');
+                    return;
+                }
+                
+                if (cellsPerRow < 3 || cellsPerRow > 10) {
+                    alert('行あたりのマス数は3から10の間で設定してください。');
+                    return;
+                }
+
+                if (cellSize < 50 || cellSize > 150) {
+                    alert('マス目のサイズは50pxから150pxの間で設定してください。');
+                    return;
+                }
+
+                if (playerSize < 1 || playerSize > 50) {
+                    alert('プレイヤーのサイズは1pxから50pxの間で設定してください。');
+                    return;
+                }
+                
+                gameContainer.classList.remove('hidden');
+                gameBoard.innerHTML = '';
+                document.body.style.backgroundColor = boardColor;
+                
+                document.getElementById('updateArrowColor').value = arrowColor;
+                
+                cellsData = [];
+                currentPosition = 0;
+                
+                const rowCount = Math.ceil(cellCount / cellsPerRow);
+                let cellIndex = 0;
+                
+                for (let i = 0; i < rowCount; i++) {
+                    const row = document.createElement('div');
+                    row.className = 'board-row';
+                    
+                    const isRightToLeft = i % 2 !== 0;
+                    
+                    const cellsInThisRow = (i === rowCount - 1 && cellCount % cellsPerRow !== 0) 
+                        ? cellCount % cellsPerRow 
+                        : cellsPerRow;
+                    
+                    for (let j = 0; j < cellsInThisRow; j++) {
+                        const cellPosition = isRightToLeft ? cellsInThisRow - j - 1 : j;
+                        
+                        const cell = document.createElement('div');
+                        
+                        const randomColor = defaultColors[Math.floor(Math.random() * defaultColors.length)];
+                        
+                        cell.className = 'game-cell';
+                        cell.style.backgroundColor = randomColor;
+                        cell.style.order = cellPosition;
+                        cell.style.width = `${cellSize}px`; // 動的に幅を設定
+                        cell.style.height = `${cellSize}px`; // 動的に高さを設定
+                        cell.style.paddingTop = `${Math.max(5, cellSize * 0.25)}px`; // サイズに合わせて調整
+
+                        const cellNumber = document.createElement('div');
+                        cellNumber.className = 'cell-number';
+                        cellNumber.textContent = cellIndex + 1;
+                        // cell-numberの位置とサイズを調整
+                        cellNumber.style.top = `${Math.max(5, cellSize * 0.05)}px`; // cellSizeの5%を最小5pxに
+                        cellNumber.style.left = `${Math.max(5, cellSize * 0.05)}px`; // cellSizeの5%を最小5pxに
+                        cellNumber.style.width = `${Math.min(28, cellSize * 0.3)}px`; 
+                        cellNumber.style.height = `${Math.min(28, cellSize * 0.3)}px`;
+                        cellNumber.style.fontSize = `${Math.min(16, cellSize * 0.18)}px`; 
+                        
+                        const cellText = document.createElement('div');
+                        cellText.className = 'cell-text';
+                        cellText.style.color = '#333333'; 
+                        cellText.style.fontSize = `${Math.min(16, cellSize * 0.18)}px`; 
+                        cellText.style.minHeight = `${Math.min(20, cellSize * 0.2)}px`; 
+                        // cell-textのパディングとマージンを調整
+                        cellText.style.padding = `0 ${Math.max(5, cellSize * 0.05)}px`; // cellSizeの5%を最小5pxに
+                        cellText.style.marginTop = `${Math.max(5, cellSize * 0.05)}px`; // cellSizeの5%を最小5pxに
+                        
+                        const cellAction = document.createElement('div');
+                        cellAction.className = 'cell-action';
+                        cellAction.style.fontSize = `${Math.min(14, cellSize * 0.16)}px`; 
+                        // cell-actionのパディングとマージンを調整
+                        cellAction.style.padding = `${Math.max(2, cellSize * 0.02)}px ${Math.max(6, cellSize * 0.06)}px`;
+                        cellAction.style.marginBottom = `${Math.max(5, cellSize * 0.05)}px`; // cellSizeの5%を最小5pxに
+
+                        let initialText = '';
+                        let initialTextColor = '#333333';
+
+                        if (cellIndex === 0) {
+                            initialText = 'スタート';
+                            initialTextColor = '#006400';
+                        } else if (cellIndex === cellCount - 1) {
+                            initialText = 'ゴール';
+                            initialTextColor = '#8B0000';
+                        }
+                        cellText.textContent = initialText;
+                        cellText.style.color = initialTextColor;
+                        
+                        cell.appendChild(cellNumber);
+                        cell.appendChild(cellText);
+                        cell.appendChild(cellAction);
+                        
+                        row.appendChild(cell);
+                        
+                        cellsData.push({
+                            number: cellIndex + 1,
+                            text: initialText,
+                            action: 'none',
+                            value: 0,
+                            color: randomColor,
+                            textColor: initialTextColor,
+                        });
+                        
+                        cellIndex++;
+                    }
+
+                    if (i < rowCount && cellsInThisRow === cellsPerRow) {
+                        const arrowContainer = document.createElement('div');
+                        arrowContainer.className = 'arrow-container';
+                        arrowContainer.style.width = `${Math.max(20, cellSize * 0.3)}px`; 
+                        arrowContainer.style.height = `${Math.max(20, cellSize * 0.3)}px`; 
+
+                        const arrow = document.createElement('div');
+                        arrow.className = 'cell-arrow';
+                        arrow.style.color = arrowColor;
+                        arrow.style.fontSize = `${Math.max(18, cellSize * 0.25)}px`; 
+                        
+                        if (isRightToLeft) {
+                            arrow.innerHTML = '⬅';
+                        } else {
+                            arrow.innerHTML = '➡';
+                        }
+                        
+                        arrowContainer.appendChild(arrow);
+                        row.appendChild(arrowContainer);
+                    }
+                    
+                    gameBoard.appendChild(row);
+                    
+                    if (i < rowCount - 1) {
+                        const arrowRow = document.createElement('div');
+                        arrowRow.className = 'flex justify-center items-center'; 
+                        arrowRow.style.position = 'relative';
+                        arrowRow.style.height = `${cellSize * 0.4}px`; 
+                        arrowRow.style.marginBottom = `${cellSize * 0.15}px`; 
+                        
+                        const arrow = document.createElement('div');
+                        arrow.className = 'vertical-arrow';
+                        arrow.innerHTML = '⬇';
+                        arrow.style.color = arrowColor;
+                        arrow.style.fontSize = `${cellSize * 0.3}px`; 
+                        
+                        arrowRow.appendChild(arrow);
+                        gameBoard.appendChild(arrowRow);
+                    }
+                }
+                
+                updatePlayerPosition();
+                diceResult.textContent = '🎲';
+                
+                imagePreviewContainer.classList.add('hidden');
+                
+                saveGameData();
+            }
+            
+            function rollDice() {
+                const dice = Math.floor(Math.random() * 6) + 1;
+                const diceEmojis = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+                diceResult.textContent = diceEmojis[dice - 1];
+                diceResult.style.animation = 'none';
+                setTimeout(() => {
+                    diceResult.style.animation = 'spin 0.5s ease-out';
+                }, 10);
+                
+                movePlayer(dice);
+            }
+            
+            async function movePlayer(steps) {
+                const cells = document.querySelectorAll('.game-cell');
+                const goalIndex = cells.length - 1;
+                let newPosition = currentPosition + steps;
+                
+                if (exactGoalBehavior) {
+                    if (newPosition > goalIndex) {
+                        const excessSteps = newPosition - goalIndex;
+                        newPosition = goalIndex - excessSteps;
+                        if (newPosition < 0) newPosition = 0;
+                        alert(`出目が${steps}でした。ゴールを${excessSteps}マス通り過ぎたため、${excessSteps}マス戻ります。現在のマスは${newPosition + 1}マス目です。`);
+                    } else if (newPosition === goalIndex) {
+                        alert('ゴールに到着しました！おめでとう！');
+                    }
+                } else {
+                    if (newPosition >= goalIndex) {
+                        newPosition = goalIndex;
+                        alert('ゴールに到着しました！おめでとう！');
+                    }
+                }
+                
+                if (newPosition < 0) {
+                    newPosition = 0;
+                }
+                
+                currentPosition = newPosition;
+                
+                const cellData = cellsData[currentPosition];
+                if (cellData && cellData.action === 'forward') {
+                    alert(`${cellData.value}マス進みます！`);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    movePlayer(cellData.value);
+                    return;
+                } else if (cellData && cellData.action === 'backward') {
+                    alert(`${cellData.value}マス戻ります！`);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    movePlayer(-cellData.value);
+                    return;
+                }
+                
+                updatePlayerPosition();
+                saveGameData();
+            }
+            
+            function updatePlayerPosition() {
+                const cells = document.querySelectorAll('.game-cell');
+                
+                const existingTokens = document.querySelectorAll('.player-token');
+                existingTokens.forEach(token => token.remove());
+                
+                cells.forEach(cell => cell.classList.remove('current-cell'));
+                
+                if (currentPosition >= 0 && currentPosition < cells.length) {
+                    cells[currentPosition].classList.add('current-cell');
+                    
+                    const playerToken = document.createElement('div');
+                    playerToken.className = 'player-token';
+                    playerToken.innerHTML = '👤';
+                    playerToken.style.color = 'white'; // 人型アイコンの色を強制的に白に設定
+                    
+                    // プレイヤーのサイズと色を設定
+                    playerToken.style.width = `${playerSize}px`;
+                    playerToken.style.height = `${playerSize}px`;
+                    playerToken.style.background = playerColor;
+                    playerToken.style.fontSize = `${Math.max(8, playerSize * 0.8)}px`; // サイズに合わせて文字サイズも調整
+
+                    // トークンの位置を調整: マス目の右上に配置（サイズに応じてオフセット調整）
+                    const borderThickness = Math.max(1, playerSize * 0.1); // ボーダーの太さも考慮
+                    playerToken.style.top = `${-borderThickness}px`;
+                    playerToken.style.right = `${-borderThickness}px`;
+                    
+                    playerToken.style.border = `${borderThickness}px solid #fff`; // サイズに合わせてボーダーも調整
+                    playerToken.style.boxShadow = `0 0 ${playerSize * 0.3}px ${playerColor}`;
+                    
+                    cells[currentPosition].appendChild(playerToken);
+                    
+                    cells[currentPosition].scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'nearest',
+                        inline: 'center'
+                    });
+                }
+            }
+            
+            function resetAndSaveGame() {
+                if (confirm('ゲームデータをリセットして保存しますか？')) {
+                    currentPosition = 0;
+                    updatePlayerPosition();
+                    diceResult.textContent = '🎲';
+                    saveGameData();
+                    alert('ゲームがリセットされ、現在のボード情報が保存されました。');
+                }
+            }
+
+            function clearAllData() {
+                if (confirm('全てのボード設定とゲームデータをクリアして、初期状態に戻しますか？')) {
+                    localStorage.removeItem(LOCAL_STORAGE_KEY);
+                    alert('全てのデータがクリアされました。ページをリロードして初期状態に戻します。');
+                    location.reload();
+                }
+            }
+            
+            function updateCell() {
+                const cellNumber = parseInt(document.getElementById('cellNumber').value);
+                const cellText = document.getElementById('cellText').value;
+                const cellAction = document.getElementById('cellAction').value;
+                const actionValue = parseInt(document.getElementById('actionValue').value);
+                const cellColor = document.getElementById('cellColor').value;
+                const cellTextColor = document.getElementById('cellTextColor').value;
+                
+                const cells = document.querySelectorAll('.game-cell');
+                
+                if (cellNumber < 1 || cellNumber > cells.length) {
+                    alert(`マス番号は1から${cells.length}の間で設定してください。`);
+                    return;
+                }
+                
+                const index = cellNumber - 1;
+                const cell = cells[index];
+                const cellTextDiv = cell.querySelector('.cell-text');
+                const cellActionDiv = cell.querySelector('.cell-action');
+                
+                cell.style.backgroundColor = cellColor;
+                cellTextDiv.textContent = cellText;
+                cellTextDiv.style.color = cellTextColor;
+                
+                cellsData[index].text = cellText;
+                cellsData[index].action = cellAction;
+                cellsData[index].value = actionValue;
+                cellsData[index].color = cellColor;
+                cellsData[index].textColor = cellTextColor;
+                
+                cellActionDiv.textContent = '';
+                cellActionDiv.style.backgroundColor = 'transparent';
+                cellActionDiv.style.color = '#333';
+
+
+                if (cellAction === 'forward') {
+                    cellActionDiv.textContent = `${actionValue}マス進む`;
+                    cellActionDiv.style.color = '#1e40af';
+                    cellActionDiv.style.backgroundColor = 'rgba(219, 234, 254, 0.8)';
+                    cellActionDiv.style.borderRadius = '8px';
+                    cellActionDiv.style.padding = `${Math.max(2, cellSize * 0.02)}px ${Math.max(6, cellSize * 0.06)}px`;
+                } else if (cellAction === 'backward') {
+                    cellActionDiv.textContent = `${actionValue}マス戻る`;
+                    cellActionDiv.style.color = '#b91c1c';
+                    cellActionDiv.style.backgroundColor = 'rgba(254, 226, 226, 0.8)';
+                    cellActionDiv.style.borderRadius = '8px';
+                    cellActionDiv.style.padding = `${Math.max(2, cellSize * 0.02)}px ${Math.max(6, cellSize * 0.06)}px`;
+                }
+                saveGameData();
+            }
+            
+            function exportAsImage() {
+                const boardContainer = document.querySelector('.board-container');
+                const gameBoard = document.getElementById('gameBoard');
+
+                // 元のスクロール位置とoverflow-xスタイルを保存
+                const originalScrollLeft = boardContainer.scrollLeft;
+                const originalOverflowX = boardContainer.style.overflowX;
+
+                // ボードを中央にスクロール
+                let targetScrollLeft = 0;
+                if (gameBoard.scrollWidth > boardContainer.clientWidth) {
+                    targetScrollLeft = (gameBoard.scrollWidth - boardContainer.clientWidth) / 2;
+                }
+                boardContainer.scrollLeft = targetScrollLeft;
+
+                // スクロールバーを一時的に非表示にする
+                boardContainer.style.overflowX = 'hidden';
+
+                html2canvas(boardContainer, { // boardContainerをキャプチャ対象にする
+                    backgroundColor: document.body.style.backgroundColor,
+                    scale: 2, // 高解像度でキャプチャ
+                }).then(canvas => {
+                    imageDataUrl = canvas.toDataURL('image/png');
+                    imagePreview.src = imageDataUrl;
+                    imagePreviewContainer.classList.remove('hidden');
+                    
+                    // スクロール位置とoverflow-xスタイルを元に戻す
+                    boardContainer.scrollLeft = originalScrollLeft;
+                    boardContainer.style.overflowX = originalOverflowX;
+                    
+                    imagePreviewContainer.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }).catch(error => {
+                    console.error("Error capturing image:", error);
+                    alert("画像の保存に失敗しました。開発者ツールでエラーを確認してください。");
+                    // エラー時もスタイルを元に戻す
+                    boardContainer.scrollLeft = originalScrollLeft;
+                    boardContainer.style.overflowX = originalOverflowX;
+                });
+            }
+            
+            function downloadImage() {
+                if (imageDataUrl) {
+                    const link = document.createElement('a');
+                    link.download = 'sugoroku-game.png';
+                    link.href = imageDataUrl;
+                    link.click();
+                }
+            }
+            
+            function openImageInNewTab() {
+                if (imageDataUrl) {
+                    const newTab = window.open();
+                    newTab.document.write(`
+                        <html>
+                            <head>
+                                <title>双六ゲーム画像</title>
+                                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                                <style>
+                                    body {
+                                        margin: 0;
+                                        padding: 20px;
+                                        display: flex;
+                                        justify-content: center;
+                                        align-items: center;
+                                        background-color: #f0f0f0;
+                                        font-family: sans-serif;
+                                    }
+                                    .container {
+                                        text-align: center;
+                                        max-width: 100%;
+                                    }
+                                    img {
+                                        max-width: 100%;
+                                        height: auto;
+                                        border: 10px solid white;
+                                        border-radius: 10px;
+                                        box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+                                    }
+                                    h1 {
+                                        color: #333;
+                                        margin-bottom: 20px;
+                                    }
+                                    p {
+                                        color: #666;
+                                        margin-top: 20px;
+                                    }
+                                </style>
+                            </head>
+                            <body>
+                                <div class="container">
+                                    <h1>双六ゲーム</h1>
+                                    <img src="${imageDataUrl}" alt="双六ゲーム">
+                                    <p>右クリックで画像を保存できます</p>
+                                    <p>（スマホの場合は画像を長押し）</p>
+                                </div>
+                            </body>
+                        </html>
+                    `);
+                    newTab.document.close();
+                }
+            }
+
+            function saveGameData() {
+                const gameData = {
+                    currentPosition: currentPosition,
+                    cellsData: cellsData,
+                    cellsPerRow: cellsPerRow,
+                    arrowColor: arrowColor,
+                    boardColor: boardColor,
+                    cellCount: parseInt(document.getElementById('cellCount').value),
+                    cellSize: parseInt(document.getElementById('cellSize').value),
+                    playerColor: document.getElementById('playerColor').value,
+                    playerSize: parseInt(document.getElementById('playerSize').value),
+                    exactGoalBehavior: exactGoalBehavior
+                };
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameData));
+                console.log('ゲームデータがローカルに保存されました。');
+            }
+
+            function loadGameData() {
+                const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+                if (savedData) {
+                    const gameData = JSON.parse(savedData);
+                    
+                    document.getElementById('cellCount').value = gameData.cellCount || 20;
+                    document.getElementById('boardColor').value = gameData.boardColor || "#fffaf0";
+                    document.getElementById('cellsPerRow').value = gameData.cellsPerRow || 5;
+                    document.getElementById('cellSize').value = gameData.cellSize || 90;
+                    document.getElementById('playerColor').value = gameData.playerColor || "#ff4500";
+                    document.getElementById('playerSize').value = gameData.playerSize || 30; 
+                    document.getElementById('updateArrowColor').value = gameData.arrowColor || "#4B5563";
+                    document.getElementById('exactGoal').value = gameData.exactGoalBehavior ? 'true' : 'false';
+
+                    createGameBoardFromSavedData(gameData);
+                    console.log('ゲームデータがローカルから読み込まれました。');
+                } else {
+                    console.log('保存されたゲームデータはありません。新しいボードを作成してください。');
+                }
+            }
+
+            function createGameBoardFromSavedData(gameData) {
+                currentPosition = gameData.currentPosition || 0;
+                cellsData = gameData.cellsData || [];
+                cellsPerRow = gameData.cellsPerRow || 5;
+                cellSize = gameData.cellSize || 90;
+                playerColor = gameData.playerColor || "#ff4500";
+                playerSize = gameData.playerSize || 30; 
+                arrowColor = gameData.arrowColor || "#4B5563";
+                boardColor = gameData.boardColor || "#fffaf0";
+                exactGoalBehavior = gameData.exactGoalBehavior || false;
+
+                const cellCount = cellsData.length;
+                if (cellCount === 0) {
+                    createGameBoard();
+                    return;
+                }
+
+                gameContainer.classList.remove('hidden');
+                gameBoard.innerHTML = '';
+                document.body.style.backgroundColor = boardColor;
+                document.getElementById('updateArrowColor').value = arrowColor;
+
+                const rowCount = Math.ceil(cellCount / cellsPerRow);
+                let cellIndex = 0;
+
+                for (let i = 0; i < rowCount; i++) {
+                    const row = document.createElement('div');
+                    row.className = 'board-row';
+                    const isRightToLeft = i % 2 !== 0;
+                    const cellsInThisRow = (i === rowCount - 1 && cellCount % cellsPerRow !== 0) 
+                        ? cellCount % cellsPerRow 
+                        : cellsPerRow;
+                    
+                    for (let j = 0; j < cellsInThisRow; j++) {
+                        const cellPosition = isRightToLeft ? cellsInThisRow - j - 1 : j;
+                        const cell = document.createElement('div');
+                        const cellDataItem = cellsData[cellIndex];
+
+                        cell.className = 'game-cell';
+                        cell.style.backgroundColor = cellDataItem.color;
+                        cell.style.order = cellPosition;
+                        cell.style.width = `${cellSize}px`;
+                        cell.style.height = `${cellSize}px`;
+                        cell.style.paddingTop = `${Math.max(5, cellSize * 0.25)}px`;
+
+                        const cellNumber = document.createElement('div');
+                        cellNumber.className = 'cell-number';
+                        cellNumber.textContent = cellDataItem.number;
+                        // cell-numberの位置とサイズを調整
+                        cellNumber.style.top = `${Math.max(5, cellSize * 0.05)}px`;
+                        cellNumber.style.left = `${Math.max(5, cellSize * 0.05)}px`;
+                        cellNumber.style.width = `${Math.min(28, cellSize * 0.3)}px`;
+                        cellNumber.style.height = `${Math.min(28, cellSize * 0.3)}px`;
+                        cellNumber.style.fontSize = `${Math.min(16, cellSize * 0.18)}px`;
+                        
+                        const cellText = document.createElement('div');
+                        cellText.className = 'cell-text';
+                        cellText.textContent = cellDataItem.text;
+                        cellText.style.color = cellDataItem.textColor || '#333333';
+                        cellText.style.fontSize = `${Math.min(16, cellSize * 0.18)}px`;
+                        cellText.style.minHeight = `${Math.min(20, cellSize * 0.2)}px`;
+                        // cell-textのパディングとマージンを調整
+                        cellText.style.padding = `0 ${Math.max(5, cellSize * 0.05)}px`;
+                        cellText.style.marginTop = `${Math.max(5, cellSize * 0.05)}px`;
+                        
+                        const cellAction = document.createElement('div');
+                        cellAction.className = 'cell-action';
+                        cellAction.style.fontSize = `${Math.min(14, cellSize * 0.16)}px`;
+                        // cell-actionのパディングとマージンを調整
+                        cellAction.style.padding = `${Math.max(2, cellSize * 0.02)}px ${Math.max(6, cellSize * 0.06)}px`;
+                        cellAction.style.marginBottom = `${Math.max(5, cellSize * 0.05)}px`;
+                        
+                        if (cellDataItem.action === 'forward') {
+                            cellAction.textContent = `${cellDataItem.value}マス進む`;
+                            cellAction.style.color = '#1e40af';
+                            cellAction.style.backgroundColor = 'rgba(219, 234, 254, 0.8)';
+                            cellAction.style.borderRadius = '8px';
+                            cellAction.style.padding = `${Math.max(2, cellSize * 0.02)}px ${Math.max(6, cellSize * 0.06)}px`;
+                        } else if (cellDataItem.action === 'backward') {
+                            cellAction.textContent = `${cellDataItem.value}マス戻る`;
+                            cellAction.style.color = '#b91c1c';
+                            cellAction.style.backgroundColor = 'rgba(254, 226, 226, 0.8)';
+                            cellAction.style.borderRadius = '8px';
+                            cellAction.style.padding = `${Math.max(2, cellSize * 0.02)}px ${Math.max(6, cellSize * 0.06)}px`;
+                        }
+                        
+                        cell.appendChild(cellNumber);
+                        cell.appendChild(cellText);
+                        cell.appendChild(cellAction);
+                        row.appendChild(cell);
+                        cellIndex++;
+                    }
+
+                    if (i < rowCount && cellsInThisRow === cellsPerRow) {
+                        const arrowContainer = document.createElement('div');
+                        arrowContainer.className = 'arrow-container';
+                        arrowContainer.style.width = `${Math.max(20, cellSize * 0.3)}px`;
+                        arrowContainer.style.height = `${Math.max(20, cellSize * 0.3)}px`;
+
+                        const arrow = document.createElement('div');
+                        arrow.className = 'cell-arrow';
+                        arrow.style.color = arrowColor;
+                        arrow.style.fontSize = `${Math.max(18, cellSize * 0.25)}px`;
+                        arrow.innerHTML = isRightToLeft ? '⬅' : '➡';
+                        arrowContainer.appendChild(arrow);
+                        row.appendChild(arrowContainer);
+                    }
+                    gameBoard.appendChild(row);
+                    
+                    if (i < rowCount - 1) {
+                        const arrowRow = document.createElement('div');
+                        arrowRow.className = 'flex justify-center items-center';
+                        arrowRow.style.position = 'relative';
+                        arrowRow.style.height = `${cellSize * 0.4}px`;
+                        arrowRow.style.marginBottom = `${cellSize * 0.15}px`;
+                        
+                        const arrow = document.createElement('div');
+                        arrow.className = 'vertical-arrow';
+                        arrow.innerHTML = '⬇';
+                        arrow.style.color = arrowColor;
+                        arrow.style.fontSize = `${cellSize * 0.3}px`;
+                        arrowRow.appendChild(arrow);
+                        gameBoard.appendChild(arrowRow);
+                    }
+                }
+                updatePlayerPosition();
+                diceResult.textContent = '🎲';
+                imagePreviewContainer.classList.add('hidden');
+            }
+        });
+        
+        (function loadHtml2Canvas() {
+            const script = document.createElement('script');
+            script.src = 'https://html2canvas.hertzen.com/dist/html2canvas.min.js';
+            script.async = true;
+            document.head.appendChild(script);
+        })();
+    </script>
+</body>
+</html>
